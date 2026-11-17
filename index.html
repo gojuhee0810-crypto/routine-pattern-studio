@@ -1,0 +1,624 @@
+<meta charset="utf-8">
+<title>Routine Pattern Studio 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+  /* Drafting table: one ink on paper grey, 1px ink rules, square cells, mono uppercase labels.
+     Top bar, the phone on the left, a ruled control column on the right, a status line at the bottom. */
+  @font-face { font-family: Pretendard; font-weight: 400; src: url(fonts/Pretendard-Regular.subset.woff2) format("woff2"); }
+  @font-face { font-family: Pretendard; font-weight: 500; src: url(fonts/Pretendard-Medium.subset.woff2) format("woff2"); }
+  @font-face { font-family: Pretendard; font-weight: 600; src: url(fonts/Pretendard-SemiBold.subset.woff2) format("woff2"); }
+  @font-face { font-family: Pretendard; font-weight: 700; src: url(fonts/Pretendard-Bold.subset.woff2) format("woff2"); }
+  :root {
+    --stage: #ececea; --panel: #ececea; --ink: #1a1a1a; --line: #1a1a1a; --rule: rgba(26,26,26,.18); --text: #1a1a1a; --muted: #5c5c5a;
+    --field-hover: rgba(26,26,26,.06); --on-accent: #ececea; --knob: #ececea; --scrim: rgba(236,236,234,.85);
+    --ui-font: "IBM Plex Mono", "Noto Sans KR", ui-monospace, Menlo, monospace; --top: 44px; --bot: 30px;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --stage: #0b0b0b; --panel: #111111; --ink: #e6e6e3; --line: #e6e6e3; --rule: rgba(230,230,227,.2); --text: #e6e6e3; --muted: #9a9a96;
+    --field-hover: rgba(230,230,227,.08); --on-accent: #111111; --knob: #111111; --scrim: rgba(0,0,0,.85); color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --stage: #0b0b0b; --panel: #111111; --ink: #e6e6e3; --line: #e6e6e3; --rule: rgba(230,230,227,.2); --text: #e6e6e3; --muted: #9a9a96;
+    --field-hover: rgba(230,230,227,.08); --on-accent: #111111; --knob: #111111; --scrim: rgba(0,0,0,.85); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--stage); color: var(--text); font: 12px/1.45 var(--ui-font); overflow: hidden; }
+  button, input, select, textarea { font-family: var(--ui-font); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  #topbar { position: fixed; top: 0; left: 0; right: 0; height: var(--top); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--stage); z-index: 5; }
+  .crumb { letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .crumb b { font-weight: 600; }
+  .tb-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+  .tb { background: none; border: 1px solid var(--line); color: var(--text); padding: 5px 9px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+  .tb:hover { background: var(--field-hover); }
+  .tb.dark { background: var(--ink); color: var(--on-accent); }
+  #statusbar { position: fixed; left: 0; right: 0; bottom: 0; height: var(--bot); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px));
+    border-top: 1px solid var(--line); background: var(--stage); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; z-index: 5; white-space: nowrap; }
+  #statusbar span { overflow: hidden; text-overflow: ellipsis; }
+
+  #stage { position: fixed; top: var(--top); bottom: var(--bot); left: env(safe-area-inset-left, 0px); right: 380px; display: flex; align-items: center; justify-content: center; }
+  #phoneWrap { position: relative; }
+  #screen { position: absolute; left: 0; top: 0; width: 390px; height: 844px; transform-origin: 0 0; border-radius: 44px; box-shadow: 0 0 0 1px var(--line); background: #fff; }
+  #guides { position: absolute; left: 0; top: 0; width: 390px; height: 844px; transform-origin: 0 0; pointer-events: none; border-radius: 44px; overflow: hidden; }
+  #guides[hidden] { display: none; }
+
+  #panel { position: fixed; top: var(--top); right: 0; bottom: var(--bot); width: 380px; overflow: auto; background: var(--panel); border-left: 1px solid var(--line); padding: 0 0 24px; }
+  #panel .hint { color: var(--muted); font-size: 11px; letter-spacing: .04em; margin: 0; padding: 12px 18px; text-transform: uppercase; }
+  .section { border-top: 1px solid var(--line); padding: 14px 18px 8px; }
+  .section-title { font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .section-title small { font-weight: 400; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-align: right; }
+  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 30px; }
+  .row > label { flex: 0 0 104px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .row input[type=text], .row select, textarea {
+    flex: 1; min-width: 0; background: transparent; border: 1px solid var(--line); color: var(--text); border-radius: 0; padding: 6px 9px; font: inherit; font-family: "Noto Sans KR", var(--ui-font); }
+  .row input:focus, textarea:focus, select:focus { outline: none; box-shadow: inset 0 0 0 1px var(--ink); }
+  textarea { width: 100%; min-height: 120px; resize: vertical; font-size: 12px; line-height: 1.6; }
+  .spec { color: var(--muted); font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
+  .note { color: var(--muted); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; margin: -2px 0 10px; }
+  .switch { position: relative; width: 44px; height: 22px; flex: 0 0 auto; margin-left: auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; border: 1px solid var(--line); cursor: pointer; }
+  .switch span::after { content: ''; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border: 1px solid var(--ink); background: var(--knob); transition: transform .12s; }
+  .switch input:checked + span { background: var(--ink); }
+  .switch input:checked + span::after { transform: translateX(22px); background: var(--on-accent); border-color: var(--on-accent); }
+  .switch input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
+  .preset-btn { border: none; border-left: 1px solid var(--line); background: none; color: var(--text); padding: 0; cursor: pointer; font: inherit; font-size: 11px; text-align: center; }
+  .preset-btn:first-child { border-left: none; }
+  .preset-btn i { display: block; height: 64px; border-bottom: 1px solid var(--line); background-size: cover; background-position: center 40%; }
+  .preset-btn span { display: block; padding: 6px 2px; letter-spacing: .08em; text-transform: uppercase; }
+  .preset-btn:hover span { background: var(--field-hover); }
+  .preset-btn.on span { background: var(--ink); color: var(--on-accent); }
+
+  /* Visual system tables: the reference the screen is drawn from. */
+  table.sys { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+  table.sys th { text-align: left; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 0 6px; border-bottom: 1px solid var(--line); }
+  table.sys td { padding: 6px 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  table.sys td:last-child { text-align: right; color: var(--muted); }
+  .whites { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); margin-bottom: 12px; }
+  .whites div { border-left: 1px solid var(--line); text-align: center; font-size: 10px; letter-spacing: .06em; }
+  .whites div:first-child { border-left: none; }
+  .whites i { display: block; height: 30px; border-bottom: 1px solid var(--line); background: #1f3a8a; position: relative; }
+  .whites i::after { content: ''; position: absolute; inset: 7px 10px; background: #fff; opacity: var(--a); border-radius: 2px; }
+  .whites span { display: block; padding: 4px 0; }
+  .lines svg { display: block; }
+
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  button.btn { flex: 1 1 auto; background: none; border: 1px solid var(--line); color: var(--text); border-radius: 0; padding: 8px 10px; font: inherit; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+  button.btn:hover { background: var(--field-hover); }
+  button.btn.primary { background: var(--ink); color: var(--on-accent); }
+
+  #saveSheet { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: flex; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+  #saveSheet[hidden] { display: none; }
+  #saveSheet .sheet { background: var(--panel); color: var(--text); border: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; max-width: 420px; width: 100%; }
+  #saveSheet img { display: block; max-width: 100%; max-height: calc(100vh - 220px); object-fit: contain; border-radius: 14px; margin: 0 auto; box-shadow: 0 0 0 1px var(--line); }
+  #saveSheet p { margin: 0; color: var(--muted); font-size: 11.5px; }
+  #saveSheet .sheet-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .icon-btn { background: none; border: none; color: var(--text); cursor: pointer; font-size: 15px; padding: 2px 6px; }
+
+  @media (max-width: 760px) {
+    .tb-btns .tb:not(.dark):not(#themeToggle) { display: none; }
+    #statusbar #stRight { display: none; }
+    #stage { right: env(safe-area-inset-right, 0px); bottom: 50%; }
+    #panel { top: 50%; width: auto; left: 0; border-left: none; border-top: 1px solid var(--line); }
+  }
+  .seg { display: flex; border: 1px solid var(--line); }
+  .seg button { flex: 1; border: none; border-left: 1px solid var(--line); background: none; padding: 8px 4px; font: inherit; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text); cursor: pointer; }
+  .seg button:first-child { border-left: none; }
+  .seg button:hover { background: var(--field-hover); }
+  .seg button.on { background: var(--ink); color: var(--on-accent); }
+  #f-data { margin-bottom: 0; }
+</style>
+
+<header id="topbar">
+  <div class="crumb">Routine / Pattern Studio 2 / <b id="crumbRoutine">Morning</b></div>
+  <div class="tb-btns">
+    <button class="tb" id="guideToggle">Guides</button>
+    <button class="tb" id="resetTop">Reset</button>
+    <button class="tb" id="themeToggle">Dark</button>
+    <button class="tb dark" id="pngTop">PNG</button>
+  </div>
+</header>
+<footer id="statusbar"><span id="stLeft">390 × 844</span><span id="stRight">Visual system · Title 28 · Kicker 16 · Lines 1px</span></footer>
+
+<div id="stage"><div id="phoneWrap"><canvas id="screen" width="780" height="1688"></canvas><svg id="guides" viewBox="0 0 390 844" hidden></svg></div></div>
+
+<aside id="panel">
+  <p class="hint">Make routine screens on the current visual system · edits save in this browser</p>
+
+  <div class="section">
+    <div class="section-title">Routine <small>4 screens from Figma</small></div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Screen text <small>Sizes follow the system</small></div>
+    <div class="row"><label for="f-title">Title</label><input type="text" id="f-title" data-key="title"></div>
+    <div class="row"><label for="f-meta">Meta</label><input type="text" id="f-meta" data-key="meta"></div>
+    <div class="row"><label for="f-value">Big number</label><input type="text" id="f-value" data-key="value" placeholder="0-9 . % A M S T"></div>
+    <div class="row"><label for="f-unit">Number caption</label><input type="text" id="f-unit" data-key="unitText"></div>
+    <div class="row"><label for="f-b1">Bubble 1</label><input type="text" id="f-b1" data-key="b1" placeholder="Empty = action bar only"></div>
+    <div class="row"><label for="f-b2">Bubble 2</label><input type="text" id="f-b2" data-key="b2"></div>
+    <div class="row"><label for="f-bubbles">Show bubbles</label><label class="switch"><input type="checkbox" id="f-bubbles" data-key="bubbles"><span></span></label></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Chart <small id="chartTag"></small></div>
+    <div class="seg" id="chartSeg" role="group" aria-label="Chart type">
+      <button data-c="ring">Ring</button><button data-c="arcs">Arcs</button><button data-c="bars">Bars</button><button data-c="route">Route</button>
+    </div>
+    <p class="note" style="margin-top:10px" id="chartNote"></p>
+    <textarea id="f-data" spellcheck="false" aria-label="Chart data"></textarea>
+    <p class="note" style="margin-top:8px" id="dataNote">One "label, value" per line</p>
+    <div class="row"><label for="f-dunit">Value unit</label><input type="text" id="f-dunit" data-c-key="unit" placeholder="e.g. 일, 회, 건"></div>
+    <div class="row" data-for="arcs"><label for="f-elapsed">Days passed</label><input type="text" id="f-elapsed" data-c-key="elapsed" inputmode="decimal"></div>
+    <div class="row" data-for="arcs"><label for="f-start">Start label</label><input type="text" id="f-start" data-c-key="start"></div>
+    <div class="row" data-for="ring route"><label for="f-hi">Peak label</label><label class="switch"><input type="checkbox" id="f-hi" data-c-key="peak"><span></span></label></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Visual system <small>Figma 322:8671</small></div>
+    <table class="sys">
+      <tr><th>Style</th><th>Size · weight</th><th>Colour</th></tr>
+      <tr><td>Title</td><td>28 Bold</td><td>Routine gradient</td></tr>
+      <tr><td>Kicker</td><td>16 Regular</td><td>Routine ink 70%</td></tr>
+      <tr><td>Body · bubble</td><td>16 SemiBold</td><td>White</td></tr>
+      <tr><td>Caption</td><td>14 Medium</td><td>White</td></tr>
+      <tr><td>Data label</td><td>13 SemiBold</td><td>White</td></tr>
+      <tr><td>Data key</td><td>13 Bold</td><td>White</td></tr>
+      <tr><td>Axis</td><td>12 Medium</td><td>White 80%</td></tr>
+      <tr><td>Axis strong</td><td>12 Bold</td><td>White</td></tr>
+      <tr><td>Tick</td><td>11 Regular</td><td>White 60%</td></tr>
+    </table>
+    <div class="whites" aria-label="White levels">
+      <div><i style="--a:1"></i><span>100</span></div><div><i style="--a:.8"></i><span>80</span></div><div><i style="--a:.6"></i><span>60</span></div><div><i style="--a:.4"></i><span>40</span></div><div><i style="--a:.24"></i><span>24</span></div>
+    </div>
+    <table class="sys lines">
+      <tr><th>Line</th><th>Sample</th><th>Spec</th></tr>
+      <tr><td>Key</td><td><svg width="90" height="10"><line x1="2" y1="5" x2="88" y2="5" stroke="currentColor" stroke-width="1"/></svg></td><td>1px · 100%</td></tr>
+      <tr><td>Guide</td><td><svg width="90" height="10"><line x1="2" y1="5" x2="88" y2="5" stroke="currentColor" stroke-opacity=".4" stroke-width="1"/></svg></td><td>1px · 40%</td></tr>
+      <tr><td>Dotted</td><td><svg width="90" height="10"><line x1="3" y1="5" x2="88" y2="5" stroke="currentColor" stroke-opacity=".6" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0.01 5"/></svg></td><td>1.5px round · 60%</td></tr>
+      <tr><td>Grid</td><td><svg width="90" height="10"><line x1="2" y1="5" x2="88" y2="5" stroke="currentColor" stroke-opacity=".24" stroke-width="1" stroke-dasharray="3 4"/></svg></td><td>1px 3·4 · 24%</td></tr>
+      <tr><td>Tag stroke</td><td><svg width="90" height="14"><rect x="2" y="1" width="86" height="12" rx="6" fill="none" stroke="currentColor" stroke-opacity=".6"/></svg></td><td>1px · 60%</td></tr>
+      <tr><td>Icon arrow</td><td><svg width="90" height="12"><path d="M30 6h16M40 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></td><td>2px</td></tr>
+    </table>
+    <p class="note">Dot number · pitch 12 · dot 10 · glyph gap 10 · unlit 16% · lit always white</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Export</div>
+    <div class="row"><label for="exportScale">Scale</label>
+      <select id="exportScale"><option value="1">1x · 390 × 844</option><option value="2">2x · 780 × 1688</option><option value="3" selected>3x · 1170 × 2532</option></select></div>
+    <div class="btns">
+      <button class="btn primary" id="exportPng">Make PNG</button>
+      <button class="btn" id="resetAll">Reset this routine</button>
+    </div>
+  </div>
+</aside>
+
+<div id="saveSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="Save PNG">
+    <div class="sheet-head"><span id="saveTitle">PNG</span><button class="icon-btn" id="closeSheet" aria-label="Close">×</button></div>
+    <img id="saveImg" alt="Routine screen image">
+    <p>Right-click the image and choose <b>Save image as</b>. On a phone, press and hold the image to save it.</p>
+  </div>
+</div>
+
+<script>
+// ---------- Routines: colour system and copy, read from the Figma screens (page 296:11) ----------
+// glow: edge → core ramp of the lit data shape. pool: deep tone that sits under the data. cells: the pixel-cell ramp.
+const ROUTINES = {
+  morning: { label: 'Morning', bg: 'clean-morning.jpg', ink: '#10240a', chart: 'ring',
+    title: ['#10240a', '#10240a', '#2f8a14', [0, .3, 1]], cta: [[0, '#0d1a07'], [.22, '#132a0b'], [.62, '#2f7a1a'], [1, '#5cbc36']],
+    glow: [[0, '#178f5e'], [.18, '#1fae74'], [.4, '#3fd38c'], [.62, '#a6ec7c'], [.82, '#eefaa8'], [1, '#fffde6']], pool: '#2f8a14',
+    cells: [[0, '#C8EE96'], [.35, '#9ADB5E'], [.7, '#5CB032'], [1, '#3C921E']], point: '#5FAE2E',
+    heat: [[0, '#178A52'], [.1, '#178A52'], [.2, '#14C98E'], [.32, '#3FE08A'], [.46, '#A8EE4E'], [.6, '#EEF58A'], [.82, '#F8F9B4'], [1, '#FDFBC8']],
+    ringCellsSvg: 'cells-ring.svg', tag: ['#C8EC9A', '#7CC745'],
+    titleText: '모닝 커피', meta: '주 5회 · 1회 평균 4,800원', value: '08', unitText: 'AM', b1: '강남 스타벅스를 가장 많이 이용해요.', b2: '이번 주 토스페이로 결제하면 1,000원 할인' },
+  car: { label: 'Car', bg: 'clean-car.jpg', ink: '#0c1a2e', chart: 'arcs',
+    title: ['#0c1a2e', '#0c1a2e', '#2a6fd4', [0, .3, 1]], cta: [[0, '#0c1426'], [.22, '#121c34'], [.6, '#2e5aa6'], [1, '#4e86d8']],
+    glow: [[0, '#6f6be8'], [.18, '#5a8cf0'], [.38, '#3fc6f2'], [.6, '#8ee8f4'], [.82, '#d4f8fb'], [1, '#f6feff']], pool: '#2a6fd6',
+    cells: [[0, '#BFE0FA'], [.35, '#8CC4F4'], [.7, '#4C96EA'], [1, '#2E72D0']], point: '#4F8FE8', tag: ['#BFE0FA', '#6FA8F0'],
+    titleText: '주유하는 날', meta: '월 2회 · 강남 주유소 부근', value: '14', unitText: '일마다', b1: '다음 주유는 7.26쯤이에요.', b2: '강남 SK주유소 할인 확인하기' },
+  shopping: { label: 'Shopping', bg: 'clean-shopping.jpg', ink: '#3a1a08', chart: 'bars', cellsInBg: true,
+    title: ['#3a1606', '#6b2a0c', '#c2410c', [0, .55, 1]], cta: [[0, '#2a0f04'], [.22, '#4a1a06'], [.62, '#a8380c'], [1, '#ef7a2c']],
+    glow: [[0, '#c44e16'], [.2, '#e2681e'], [.42, '#f8963e'], [.64, '#ffc46a'], [.84, '#ffe6a8'], [1, '#fff8e6']], pool: '#d9541a',
+    cells: [[0, '#FFD9B0'], [.35, '#FFB070'], [.7, '#F08A3C'], [1, '#D9601C']], point: '#E97C3C', tag: ['#FFD9B0', '#F59A5A'],
+    titleText: '월간 쇼핑', meta: '월 2.3회 · 무신사 플랫폼', value: '18.4', unitText: '만원 · 월평균 쇼핑 결제', b1: '6월에 평소보다 9.6만원 더 썼어요.', b2: '이번달 15만원 이상 결제시 15,000원 할인' },
+  weekend: { label: 'Weekend', bg: 'clean-weekend.jpg', ink: '#2a0c1c', chart: 'route',
+    title: ['#2a0c1c', '#2a0c1c', '#b0106a', [0, .3, 1]], cta: [[0, '#2a0c1c'], [.22, '#3a1028'], [.62, '#a82c6c'], [1, '#e85ca2']],
+    glow: [[0, '#a40c62'], [.2, '#c6378f'], [.42, '#ed78c6'], [.64, '#f7abdc'], [.84, '#fdd8ee'], [1, '#fff4fa']], pool: '#b0106a',
+    cells: [[0, '#FAC2E0'], [.35, '#F283BC'], [.7, '#E2308C'], [1, '#B0106A']], point: '#E2308C', tag: ['#FFD6EA', '#F293C2'],
+    titleText: '주말 나들이', meta: '월 3회 · 성수동 부근', value: '03', unitText: 'SPOTS · 성수동 반복 동선', b1: '브런치 카페를 자주 가요', b2: '성수 맛집 브런치 카페 할인 혜택 보기' },
+};
+const KEYS = Object.keys(ROUTINES);
+
+// ---------- Chart forms ----------
+// Number placement follows the form: inside the ring for ring/arcs, above the chart for bars/route (Figma positions).
+const CHARTS = {
+  ring: { name: 'Time ring', numTop: 352, unitTop: 443.5, note: 'Time slots clockwise from 12 o\'clock → one sector per slot, longer = busier, the busiest reaches past the ring',
+    data: '8:30, 23\n8:45, 34\n9:00, 7\n9:15, 24\n9:30, 10\n9:45, 26\n7:00, 11\n7:15, 19\n7:30, 5\n7:45, 23\n8:00, 34\n8:15, 14', unit: '잔', peak: false },
+  arcs: { name: 'Cycle arcs', numTop: 352, unitTop: 441.5, note: 'A repeating cycle such as refuelling → one arc per past cycle, the inner arc is now',
+    data: '6.14 – 6.28, 14\n6.28 – 7.13, 15\n7.13 – 7.26, 13', unit: '일', elapsed: '7', start: '주유일' },
+  bars: { name: 'Bars', numTop: 201, unitTop: 297, note: 'Separate periods or items → compare sizes, the biggest one glows',
+    data: '5월, 19.5\n6월, 28\n7월, 14.5\n8월, 16\n9월, 16.2', unit: '' },
+  route: { name: 'Route', numTop: 201, unitTop: 296, note: 'Places in visiting order → a route on the map, tags name each stop',
+    data: '서울숲, 9\n연무장길, 18\n성수역 편집숍, 6', unit: '회', peak: true },
+};
+const CKEYS = Object.keys(CHARTS);
+
+// ---------- State (per routine, per chart form; kept in this browser) ----------
+const freshChart = c => { const d = CHARTS[c]; return { data: d.data, unit: d.unit, elapsed: d.elapsed || '', start: d.start || '', peak: !!d.peak }; };
+const fresh = k => { const r = ROUTINES[k]; return { chart: r.chart, meta: r.meta, title: r.titleText, value: r.value, unitText: r.unitText, b1: r.b1, b2: r.b2, bubbles: true,
+  c: Object.fromEntries(CKEYS.map(c => [c, freshChart(c)])) }; };
+let store = {}; try { store = JSON.parse(localStorage.getItem('rps2c') || '{}') || {}; } catch (e) { store = {}; }
+const S = {};
+KEYS.forEach(k => { const f0 = fresh(k), s0 = store.s && store.s[k] || {}; S[k] = { ...f0, ...s0, c: Object.fromEntries(CKEYS.map(c => [c, { ...f0.c[c], ...(s0.c && s0.c[c] || {}) }])) }; });
+if (S.shopping.c.bars.unit === '') S.shopping.c.bars.unit = '';
+let cur = KEYS.includes(store.cur) ? store.cur : 'morning';
+const save = () => { try { localStorage.setItem('rps2c', JSON.stringify({ cur, s: S })); } catch (e) {} };
+
+// ---------- Helpers ----------
+const img = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+const cellSvgs = {}, bgs = {}; const bgOf = k => bgs[k] || (bgs[k] = img(ROUTINES[k].bg));
+const FONT_FAMILY = 'Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+const fontsReady = Promise.all([400, 500, 600, 700].map(w => document.fonts.load(`${w} 16px Pretendard`, '가A1').catch(() => {})));
+const f = n => (+n).toFixed(2);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const mctx = document.createElement('canvas').getContext('2d');
+const tw = (t, size, w) => { mctx.font = `${w} ${size}px ${FONT_FAMILY}`; return mctx.measureText(String(t)).width; };
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const lut = (ramp, n = 256) => Array.from({ length: n }, (_, i) => { const t = i / (n - 1); let k = 0; while (k < ramp.length - 2 && t > ramp[k + 1][0]) k++;
+  const [a, ca] = ramp[k], [b, cb] = ramp[k + 1], u = Math.min(1, Math.max(0, (t - a) / (b - a))), A = hex(ca), B = hex(cb); return [0, 1, 2].map(j => A[j] + (B[j] - A[j]) * u); });
+const ss = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const h2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + 7.3) * 43758.5453; return s - Math.floor(s); };
+const vn = (x, y) => { const i = Math.floor(x), j = Math.floor(y), u = ss(0, 1, x - i), v = ss(0, 1, y - j);
+  return (h2(i, j) * (1 - u) + h2(i + 1, j) * u) * (1 - v) + (h2(i, j + 1) * (1 - u) + h2(i + 1, j + 1) * u) * v; };
+const fbm = (x, y) => vn(x, y) * 0.8 + vn(x * 1.9 + 3, y * 1.9 + 9) * 0.2;
+const niceMax = v => { if (v <= 0) return 1; const e = Math.pow(10, Math.floor(Math.log10(v))); return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map(m => m * e).find(m => m >= v); };
+const parseData = txt => String(txt).split('\n').map(l => l.split(/[,\t]/)).filter(p => p.length >= 2 && p[0].trim() && isFinite(parseFloat(p[p.length - 1])))
+  .map(p => [p.slice(0, -1).join(',').trim(), parseFloat(p[p.length - 1])]);
+const fmtAll = vals => { const dec = vals.some(v => !Number.isInteger(v)); return v => dec ? (+v).toFixed(1) : String(Math.round(v)); };
+
+// ---------- Glow renderer: the data shape, blurred twice and run through the routine's glow ramp ----------
+const W2 = 780, H2 = 1688;
+const canFilter = (() => { try { const c = document.createElement('canvas').getContext('2d'); c.filter = 'blur(2px)'; return c.filter === 'blur(2px)'; } catch (e) { return false; } })();
+const newCanvas = () => { const c = document.createElement('canvas'); c.width = W2; c.height = H2; return c; };
+function blurAlpha(src, px) {  // px in 2x pixels; returns the alpha channel
+  const out = newCanvas(), o = out.getContext('2d', { willReadFrequently: true });
+  if (canFilter) { o.filter = `blur(${px}px)`; o.drawImage(src, 0, 0); }
+  else {  // Safari: soften by drawing through a small canvas twice
+    const k = Math.max(1, px / 2.2), s = document.createElement('canvas'); s.width = Math.ceil(W2 / k); s.height = Math.ceil(H2 / k);
+    const so = s.getContext('2d'); so.imageSmoothingQuality = 'high'; so.drawImage(src, 0, 0, s.width, s.height);
+    o.imageSmoothingQuality = 'high'; o.drawImage(s, 0, 0, W2, H2);
+  }
+  const d = o.getImageData(0, 0, W2, H2).data, a = new Uint8ClampedArray(W2 * H2);
+  for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
+  return a;
+}
+const glowCache = new Map();
+// Figma heat recipe (organic.js paintHeat): a tight blur keeps the shape edge, a wide blur decides how hot the inside gets.
+function heatLayer(key, ramp, eb, drawMask, cellRamp, ringR) {
+  if (glowCache.has(key)) return glowCache.get(key);
+  const m = newCanvas(), mc = m.getContext('2d'); mc.scale(2, 2); mc.fillStyle = '#fff'; drawMask(mc);
+  const e = blurAlpha(m, eb * 2), h = blurAlpha(m, 42), HL = lut(ramp), out = newCanvas(), o = out.getContext('2d');
+  if (cellRamp) {  // pixel cells around the ring, starting on the outer ring line and fading outward; laid over the gradient with overlay at 60%
+    const c = newCanvas(), co = c.getContext('2d'), C = lut(cellRamp), mix = t => `rgb(${C[Math.min(255, Math.round(t * 255))].map(Math.round).join(',')})`, Y0 = 120, Y1 = 690;
+    co.scale(2, 2);
+    for (let y = Y0; y < Y1; y += 8) for (let x = 4; x < 390; x += 8) { const d = Math.hypot(x - CX, y - CY) - ringR; if (d < 2) continue;
+      const hv = Math.min(1, (0.7 + 0.6 * Math.exp(-((x - 195) ** 2) / (2 * 150 * 150) - ((y - 230) ** 2) / (2 * 110 * 110))) * 0.86 * Math.exp(-(d * d) / (2 * 58 * 58)) * (0.72 + 0.56 * fbm(x / 90 + 4, y / 90 + 3))); if (hv < 0.04) continue;
+      const fade = ss(0, 30, d) * ss(Y0, Y0 + 90, y) * (1 - ss(Y1 - 90, Y1, y)) * ss(-6, 40, x) * (1 - ss(350, 396, x));
+      const sz = 1.2 + 1.2 * fade + Math.pow(hv, 0.7) * 5.2 * (0.45 + 0.55 * fade);
+      co.globalAlpha = ss(0.04, 0.42, hv) * fade * 0.85; co.beginPath(); co.roundRect(x - sz / 2, y - sz / 2, sz, sz, 1.6);
+      if (hv > 0.42) { co.fillStyle = mix(hv); co.fill(); } else { co.strokeStyle = mix(hv); co.lineWidth = 1.1; co.stroke(); } }
+    out.cells = c;
+  }
+  const img = o.createImageData(W2, H2), d = img.data;
+  for (let i = 0; i < e.length; i++) {
+    const a = e[i] / 255; if (a < 0.004) continue;
+    const hh = h[i] / 255, t = 0.36 * a + 0.64 * a * Math.pow(Math.min(1, hh * 1.08), 1.7), L = HL[Math.round(t * 255)], q = Math.min(1, Math.max(0, (t - 0.02) / 0.14)), j = i * 4;
+    d[j] = L[0]; d[j + 1] = L[1]; d[j + 2] = L[2]; d[j + 3] = q * q * (3 - 2 * q) * 255;
+  }
+  o.putImageData(img, 0, 0);
+  if (glowCache.size > 24) glowCache.delete(glowCache.keys().next().value);
+  glowCache.set(key, out);
+  return out;
+}
+
+function glowLayer(key, r, drawMask, cells) {
+  if (glowCache.has(key)) return glowCache.get(key);
+  const m = newCanvas(), mc = m.getContext('2d'); mc.scale(2, 2); mc.fillStyle = '#fff'; mc.strokeStyle = '#fff'; drawMask(mc);
+  const e = blurAlpha(m, 9), h = blurAlpha(m, 36), p = blurAlpha(m, 84), wide = cells ? blurAlpha(m, 90) : null;
+  const G = lut(r.glow), P = hex(r.pool), out = newCanvas(), o = out.getContext('2d'), img = o.createImageData(W2, H2), d = img.data;
+  for (let i = 0; i < e.length; i++) {
+    const ea = e[i] / 255, ha = Math.min(1, h[i] / 255 * 1.2), v = Math.min(1, ea * (0.5 + 0.75 * Math.pow(ha, 1.1))), ga = ss(0.02, 0.2, v);
+    const pa = 0.5 * Math.min(1, p[i] / 255 * 1.5) * (1 - ga), a = ga + pa;
+    if (a < 0.004) continue;
+    const L = G[Math.min(255, Math.round(v * 255))], j = i * 4;
+    for (let c = 0; c < 3; c++) d[j + c] = (L[c] * ga + P[c] * pa) / a;
+    d[j + 3] = a * 255;
+  }
+  o.putImageData(img, 0, 0);
+  if (cells) {  // pixel cells: filled where the field is hot, hollow where it cools, never on the data itself
+    const C = lut(r.cells), mix = t => `rgb(${C[Math.min(255, Math.round(t * 255))].map(Math.round).join(',')})`;
+    o.save(); o.scale(2, 2); o.globalCompositeOperation = 'destination-over';
+    for (let y = 124; y < 700; y += 8) for (let x = 4; x < 390; x += 8) {
+      const i = Math.round(y * 2) * W2 + Math.round(x * 2), on = e[i] / 255; if (on > 0.06) continue;
+      const fv = Math.min(1, wide[i] / 255 * 3.4) * (0.72 + 0.56 * fbm(x / 90 + 4, y / 90 + 3)); if (fv < 0.06) continue;
+      const fade = ss(124, 210, y) * (1 - ss(610, 700, y)), s = 1.4 + Math.pow(fv, 0.7) * 5;
+      o.globalAlpha = ss(0.06, 0.45, fv) * 0.8 * fade; o.beginPath(); o.roundRect(x - s / 2, y - s / 2, s, s, 1.6);
+      if (fv > 0.42) { o.fillStyle = mix(fv); o.fill(); } else { o.strokeStyle = mix(fv); o.lineWidth = 1.1; o.stroke(); }
+    }
+    o.restore();
+  }
+  if (glowCache.size > 24) glowCache.delete(glowCache.keys().next().value);
+  glowCache.set(key, out);
+  return out;
+}
+
+// ---------- SVG building blocks (visual system lines) ----------
+const W = '#ffffff';
+const key = (d, o = 1) => `<path d="${d}" fill="none" stroke="${W}" stroke-opacity="${o}" stroke-width="1" stroke-linecap="round"/>`;          // Key 1px 100%
+const guide = d => `<path d="${d}" fill="none" stroke="${W}" stroke-opacity=".4" stroke-width="1"/>`;                                          // Guide 1px 40%
+const dotted = d => `<path d="${d}" fill="none" stroke="${W}" stroke-opacity=".6" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0.01 5"/>`;  // Dotted 1.5 round 60%
+const grid = d => `<path d="${d}" fill="none" stroke="${W}" stroke-opacity=".24" stroke-width="1" stroke-dasharray="3 4"/>`;                   // Grid 1px 24%
+const ringD = (cx, cy, r) => `M${f(cx - r)} ${f(cy)}a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0`;
+const point = (x, y, r) => `<circle cx="${f(x)}" cy="${f(y)}" r="11" fill="#fff" fill-opacity=".55"/><circle cx="${f(x)}" cy="${f(y)}" r="7.5" fill="#fff"/><circle cx="${f(x)}" cy="${f(y)}" r="5" fill="${r.point}"/>`;
+// Tag: 36 high, text + 28, routine gradient at 90%, 1px white stroke at 60%, 13 SemiBold white.
+function tag(cx, top, label, texts, bold) {
+  const w = Math.round(tw(label, 13, bold ? 700 : 600)) + 28;
+  texts.push({ s: label, x: cx, y: top + 10, size: 13, w: bold ? 700 : 600, align: 'center' });
+  return `<rect x="${f(cx - w / 2)}" y="${f(top)}" width="${w}" height="36" rx="18" fill="url(#tagGrad)" stroke="#fff" stroke-opacity=".6"/>`;
+}
+
+// ---------- Chart 1: time ring (morning) ----------
+const CX = 195, CY = 405, TAU = Math.PI * 2;
+// The Figma morning ring (organic.js v5): annular sectors from r 111 outward, one per slot, the peak reaching past the outer ring.
+// Length follows the value (busiest slots reach past the outer ring); the gap widens as a sector gets shorter.
+function ringChart(r, st, texts) {
+  const rows = parseData(st.data).slice(0, 24), N = rows.length; if (N < 3) return { svg: '' };
+  const vals = rows.map(v => v[1]), max = Math.max(...vals) || 1, PEAK = vals.indexOf(max), R = 182, r0 = 106, ri = r0 + 5, stp = TAU / N, A = k => -Math.PI / 2 + (k + 0.5) * stp;
+  const m = vals.map(v => Math.min(1, Math.max(0.06, Math.max(0, v) / max)));
+  const mask = c => vals.forEach((_, k) => {
+    const ro = m[k] >= 1 ? R + 4 : r0 + 12 + m[k] * (R - 8 - r0 - 12), g = (0.02 + (1 - m[k]) * (1 - m[k]) * 0.1) * 12 / Math.max(12, N);
+    c.beginPath(); c.arc(CX, CY, ro, A(k) - stp / 2 + g, A(k) + stp / 2 - g); c.arc(CX, CY, ri, A(k) + stp / 2 - g, A(k) - stp / 2 + g, true); c.closePath(); c.fill(); });
+  // Guides as in Figma: outer ring 1px 40%, dotted rings at 131 / 157 and a dotted halo, dotted spokes between the slots.
+  let s = guide(ringD(CX, CY, R)) + dotted(ringD(CX, CY, 131)) + dotted(ringD(CX, CY, 157)) + dotted(ringD(CX, CY, R + 26));
+  for (let k = 0; k < N; k++) { const a = A(k - 0.5); s += dotted(`M${f(CX + r0 * Math.cos(a))} ${f(CY + r0 * Math.sin(a))}L${f(CX + R * Math.cos(a))} ${f(CY + R * Math.sin(a))}`); }
+  { // white data labels as in the final screen. Time: each slot's start sits on its spoke; hours and the 12 o'clock slot are named.
+    rows.forEach(([lab], k) => { const hr = /(:00|시)$/.test(lab); if (!hr && k) return;
+      const a = A(k - 0.5), d = R + 16, py = CY + d * Math.sin(a), low = py > CY + 60, top = !hr;
+      const s = hr ? lab.replace(/^0?(\d+)(:00|시)$/, '$1시') : lab, size = hr && !low ? 13 : 11;
+      texts.push({ s, x: CX + d * Math.cos(a), y: py - size * 0.6, size, w: hr && !low ? 600 : 500, a: low ? .7 : top ? .85 : 1, align: 'center' }); });
+    // Scale: tick values placed on the radius the sector length uses (r = r0 + 12 + 56 × v / max).
+    const step = niceMax(max / 3.4), ang = -Math.PI / 2 + Math.PI * 75 / 180;
+    for (let v = step; v < max; v += step) { const rr = r0 + 12 + (R - 8 - r0 - 12) * v / max, last = v + step >= max;  // unit on the outermost tick only, so close ticks don't collide
+      texts.push({ s: `${fmtAll([step])(v)}${last ? st.unit : ''}`, x: CX + rr * Math.cos(ang), y: CY + rr * Math.sin(ang) - 6, size: 10, w: 500, a: .85, align: 'center' }); }
+  }
+  if (st.peak) {  // labels on the four diagonals, 90° apart; the peak slot's label is bold with its value
+    [0.125, 0.375, 0.625, 0.875].map(q => Math.round(q * N - 0.5 + N) % N).forEach(k => { const a = A(k), d = R + 44, pk = k === PEAK;
+      texts.push({ s: pk ? `${rows[k][0]} ${fmtAll(vals)(vals[k])}${st.unit}` : rows[k][0], x: Math.min(366, Math.max(24, CX + d * Math.cos(a))), y: CY + d * Math.sin(a) - 7, size: 12, w: pk ? 700 : 500, a: pk ? 1 : .8, align: 'center' }); });
+  }
+  return { mask, svg: s, heat: { eb: 7, cellsRing: R } };
+}
+
+// ---------- Chart 2: cycle arcs (car) ----------
+function arcsChart(r, st, texts) {
+  const rows = parseData(st.data).slice(-4), n = rows.length; if (!n) return { svg: '' };
+  const days = rows.map(v => v[1]), avg = days.reduce((a, b) => a + b, 0) / n, el = Math.max(0, parseFloat(st.elapsed) || 0);
+  const LAP = Math.ceil(Math.max(...days, el, avg) * 1.08 + 0.5), R = 182, A0 = -Math.PI / 2, ang = d => A0 + TAU * d / LAP;
+  const tracks = rows.map((_, i) => 176 - 19 * i), curR = 176 - 19 * n, P2 = (rr, a) => `${f(CX + rr * Math.cos(a))} ${f(CY + rr * Math.sin(a))}`, fm = fmtAll([...days, avg]);
+  const mask = c => { c.lineCap = 'round'; c.lineWidth = 14;
+    tracks.forEach((rr, i) => { c.beginPath(); c.arc(CX, CY, rr, A0 + 0.06, ang(days[i])); c.stroke(); });
+    if (el > 0) { c.beginPath(); c.arc(CX, CY, curR, A0 + 0.06, ang(Math.min(el, LAP))); c.stroke(); } };
+  let s = guide(ringD(CX, CY, R + 8));
+  if (el < avg) s += dotted(`M${P2(curR, ang(el))}A${curR} ${curR} 0 ${(avg - el) / LAP > .5 ? 1 : 0} 1 ${P2(curR, ang(avg))}`);
+  s += key(`M${P2(84, A0)}L${P2(R + 8, A0)}`);                 // fill-up line: every cycle starts here
+  s += dotted(`M${P2(84, ang(avg))}L${P2(R + 8, ang(avg))}`);   // average line
+  tracks.forEach((rr, i) => { const a = ang(days[i]) + 0.17; texts.push({ s: `${fm(days[i])}${st.unit}`, x: CX + rr * Math.cos(a), y: CY + rr * Math.sin(a) - 6, size: 13, w: 600, align: 'center' }); });
+  if (st.start) texts.push({ s: st.start, x: CX, y: 194, size: 13, w: 700, align: 'center' });
+  { const a = ang(avg), rr = R + 20; texts.push({ s: `평균 ${fm(avg)}${st.unit}`, x: CX + rr * Math.cos(a), y: CY + rr * Math.sin(a) - 8, size: 13, w: 700, align: 'center' }); }
+  if (el > 0) { const a = ang(Math.min(el, LAP)); s += point(CX + curR * Math.cos(a), CY + curR * Math.sin(a), r); }
+  return { mask, svg: s };
+}
+
+// ---------- Chart 3: bars (shopping) ----------
+function barsChart(r, st, texts, defs) {
+  const rows = parseData(st.data).slice(0, 8), vals = rows.map(v => v[1]), N = rows.length; if (N < 2) return { svg: '' };
+  const max = niceMax(Math.max(...vals)), BASE = 619.5, TOP = 375.5, k = (BASE - TOP) / max, yOf = v => BASE - Math.max(0, v) * k;
+  const xOf = i => 72 + (318 - 72) * i / (N - 1), BW = Math.min(38, (318 - 72) / (N - 1) - 12), PEAK = vals.indexOf(Math.max(...vals)), fm = fmtAll(vals);
+  const shop = cur === 'shopping', G = lut(r.glow), cc = t => `rgb(${G[Math.round(t * 255)].map(Math.round).join(',')})`;
+  defs.push(shop
+    ? `<linearGradient id="barPale" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFF0D2" stop-opacity=".85"/><stop offset=".55" stop-color="#FFD9A8" stop-opacity=".68"/><stop offset="1" stop-color="#FFC48A" stop-opacity=".42"/></linearGradient>` +
+      `<linearGradient id="barPeak" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#FFC34D"/><stop offset=".3" stop-color="#FFD562"/><stop offset=".5" stop-color="#FFDC70"/><stop offset=".7" stop-color="#FFD562"/><stop offset="1" stop-color="#FFC34D"/></linearGradient>`
+    : `<linearGradient id="barPale" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".8"/><stop offset=".55" stop-color="${cc(.84)}" stop-opacity=".6"/><stop offset="1" stop-color="${cc(.64)}" stop-opacity=".38"/></linearGradient>` +
+      `<linearGradient id="barPeak" x1="0" y1="0" x2="1" y2="0"><stop stop-color="${cc(.64)}"/><stop offset=".5" stop-color="${cc(.9)}"/><stop offset="1" stop-color="${cc(.64)}"/></linearGradient>`);
+  defs.push(`<filter id="b25" x="-30%" y="-10%" width="160%" height="120%"><feGaussianBlur stdDeviation="2.5"/></filter><filter id="b2" x="-30%" y="-10%" width="160%" height="120%"><feGaussianBlur stdDeviation="2"/></filter>` +
+    `<filter id="b11" x="-50%" y="-30%" width="200%" height="160%"><feGaussianBlur stdDeviation="11"/></filter><clipPath id="barClip"><rect width="390" height="620"/></clipPath>`);
+  let s = '';
+  [1, 2, 3].forEach(t => { const v = max * t / 3, y = yOf(v); s += grid(`M46 ${f(y)}H366`);
+    texts.push({ s: fm(+v.toFixed(1)).replace(/\.0$/, ''), x: 36, y: y - 6.5, size: 11, w: 400, a: .6, align: 'right' }); });
+  s += guide(`M46 ${BASE}H366`) + `<g clip-path="url(#barClip)">`;
+  vals.forEach((v, i) => { const x = xOf(i), y = yOf(v), pk = i === PEAK;
+    if (pk) s += `<rect x="${f(x - BW / 2 - 16)}" y="${f(y - 6)}" width="${f(BW + 32)}" height="${f(640 - y)}" rx="12" fill="${shop ? '#C44E16' : r.pool}" opacity=".75" filter="url(#b11)"/>`;
+    s += `<rect x="${f(x - BW / 2)}" y="${f(y)}" width="${f(BW)}" height="${f(632 - y)}" rx="6" fill="url(#${pk ? 'barPeak' : 'barPale'})" filter="url(#${pk ? 'b2' : 'b25'})"/>`;
+    texts.push({ s: fm(v), x, y: y - 25.5, size: 13, w: 600, align: 'center' });
+    texts.push({ s: rows[i][0], x, y: 630, size: 12, w: pk ? 700 : 500, a: pk ? 1 : .8, align: 'center' }); });
+  return { svg: s + '</g>' };
+}
+
+// ---------- Chart 4: route on a map (weekend) ----------
+function routeChart(r, st, texts) {
+  const rows = parseData(st.data).slice(0, 5), N = rows.length; if (N < 2) return { svg: '' };
+  const vals = rows.map(v => v[1]), PEAK = vals.indexOf(Math.max(...vals)), fm = fmtAll(vals);
+  // Stops climb from the lower left to the upper right (Figma 서울숲 → 성수역); each leg steps up, then runs across.
+  const stops = rows.map((_, i) => { const t = i / (N - 1); return [70 + 252 * t, 511 - 112 * t + (i % 2 && i < N - 1 ? 8 : 0)]; });
+  const pts = [stops[0]];
+  for (let i = 1; i < N; i++) { const [ax, ay] = stops[i - 1], [bx, by] = stops[i], mx = ax + (bx - ax) * 0.3;
+    pts.push([mx, ay - 6], [mx - 4, by + (ay - by) * 0.15 - 4 + (by - ay) * 0.1], [bx - 12, by + 6], [bx, by]); }
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + f(p[0]) + ' ' + f(p[1])).join('');
+  const mask = c => { c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = 12; c.stroke(new Path2D(d)); };
+  // Tilted map grid, clipped to the map band: every third line is the stronger one.
+  let g = '';
+  for (let j = 0; j < 17; j++) { const x = -64 + j * 30.67; g += `<path d="M${f(x)} 371L${f(x + 42.5)} 571" stroke="#fff" stroke-opacity="${j % 3 === 2 ? .24 : .12}"/>`; }
+  for (let k = -3; k < 7; k++) { const y0 = 390.9 + k * 30.67; g += `<path d="M6 ${f(y0 + 82.9)}L396 ${f(y0)}" stroke="#fff" stroke-opacity="${((k % 3) + 3) % 3 === 1 ? .24 : .12}"/>`; }
+  let s = `<defs><clipPath id="mapClip"><rect x="0" y="371" width="390" height="200"/></clipPath></defs><g clip-path="url(#mapClip)">${g}</g>`;
+  rows.forEach(([label, v], i) => { const [x, y] = stops[i], up = i === N - 1, top = up ? y - 46 : y + (i % 2 ? 35 : 16), lab = i === PEAK && st.peak ? `${label} ${fm(v)}${st.unit}` : label;
+    if (!up) s += dotted(`M${f(x)} ${f(y + 8)}V${f(top)}`);
+    s += point(x, y, r) + tag(Math.min(366 - tw(lab, 13, 600) / 2 - 14, Math.max(24 + tw(lab, 13, 600) / 2 + 14, x)), top, lab, texts, false); });
+  return { mask, svg: s };
+}
+
+// ---------- Dot-matrix number (pitch 12, dot 10, glyph gap 10, unlit 16%) ----------
+const FONT = {
+  '0': ['01110','10001','10001','10001','10001','10001','01110'], '1': ['00100','01100','00100','00100','00100','00100','01110'],
+  '2': ['01110','10001','00001','00010','00100','01000','11111'], '3': ['11110','00001','00001','01110','00001','00001','11110'],
+  '4': ['00010','00110','01010','10010','11111','00010','00010'], '5': ['11111','10000','11110','00001','00001','10001','01110'],
+  '6': ['00110','01000','10000','11110','10001','10001','01110'], '7': ['11111','00001','00010','00100','01000','01000','01000'],
+  '8': ['01110','10001','10001','01110','10001','10001','01110'], '9': ['01110','10001','10001','01111','00001','00010','01100'],
+  'A': ['01110','10001','10001','11111','10001','10001','10001'], 'M': ['10001','11011','10101','10101','10001','10001','10001'],
+  'S': ['01111','10000','10000','01110','00001','00001','11110'], 'T': ['11111','00100','00100','00100','00100','00100','00100'],
+  '%': ['11001','11010','00010','00100','01000','01011','10011'], '.': ['00','00','00','00','00','11','11'],
+};
+function dotNumber(value, top) {
+  const gl = [...String(value)].map(ch => FONT[ch.toUpperCase()]).filter(Boolean); if (!gl.length) return '';
+  const Wd = gl.reduce((w, g) => w + g[0].length * 12, 0) + (gl.length - 1) * 10;
+  let gx = Math.round(195 - Wd / 2), lit = '', dim = '';
+  gl.forEach(rows => { rows.forEach((row, rr) => [...row].forEach((b, k) => { const c = `<circle cx="${gx + k * 12 + 5}" cy="${top + rr * 12 + 5}" r="5"/>`; if (b === '1') lit += c; else dim += c; })); gx += rows[0].length * 12 + 10; });
+  return `<g fill="#fff" fill-opacity=".16">${dim}</g><g fill="#fff" filter="url(#dotGlow)">${lit}</g>`;
+}
+
+// Joined bubbles (Figma Bubbles): insight 46 high, neck, action bar 358 × 58; routine gradient, 1px white inner light at 18%.
+function bubbles(st, r, texts, defs) {
+  const by = 704, has1 = !!st.b1.trim();
+  const b1w = has1 ? Math.min(358, Math.round(tw(st.b1, 16, 600)) + 48) : 0, pl = 179 - b1w / 2 + 23, pr = 179 + b1w / 2 - 23;
+  const d = has1 ? `M${f(pl)} 0 L${f(pr)} 0 A23 23 0 0 1 ${f(pr)} 46 L194 46 C190.67 46 189 47.67 189 51 C189 54.33 190.67 56 194 56 L329 56 A29 29 0 0 1 329 114 L29 114 A29 29 0 0 1 29 56 L164 56 C167.33 56 169 54.33 169 51 C169 47.67 167.33 46 164 46 L${f(pl)} 46 A23 23 0 0 1 ${f(pl)} 0 Z`
+    : `M29 56 L329 56 A29 29 0 0 1 329 114 L29 114 A29 29 0 0 1 29 56 Z`;
+  defs.push(`<linearGradient id="cta" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="358" y2="0">${r.cta.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>` +
+    `<clipPath id="bClip"><path d="${d}"/></clipPath><mask id="bMask"><rect x="-10" y="-10" width="380" height="140" fill="#fff"/><path d="${d}" transform="translate(0,1)" fill="#000"/></mask>` +
+    `<filter id="arrowGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceAlpha" stdDeviation="6" result="b"/><feFlood flood-color="#fff" flood-opacity=".35"/><feComposite in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`);
+  if (has1) texts.push({ s: st.b1, x: 195, y: 718, size: 16, w: 600, align: 'center' });
+  texts.push({ s: st.b2, x: 40, y: 780, size: 16, w: 600, align: 'left', maxW: 270 });
+  return `<g transform="translate(16,${by})"><path d="${d}" fill="url(#cta)"/><g clip-path="url(#bClip)"><rect x="-10" y="-10" width="380" height="140" fill="#fff" fill-opacity=".18" mask="url(#bMask)"/></g></g>` +
+    `<circle cx="345" cy="789" r="21.5" fill="#fff" fill-opacity=".2" stroke="#fff" stroke-opacity=".4" filter="url(#arrowGlow)"/><path d="M337 789h16M347 783l6 6-6 6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+// ---------- Compose: background → glow + cells → lines, number, bubbles → text ----------
+const BUILD = { ring: ringChart, arcs: arcsChart, bars: barsChart, route: routeChart };
+async function compose(canvas, scale) {
+  const k = cur, r = ROUTINES[k], st = S[k], cf = CHARTS[st.chart], cs = st.c[st.chart];
+  const bg = await bgOf(k); await fontsReady;
+  const texts = [], defs = [`<filter id="dotGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`,
+    `<linearGradient id="tagGrad" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${r.tag[0]}" stop-opacity=".9"/><stop offset="1" stop-color="${r.tag[1]}" stop-opacity=".9"/></linearGradient>`];
+  const ch = BUILD[st.chart](r, cs, texts, defs);
+  let svg = ch.svg + dotNumber(st.value, cf.numTop);
+  if (st.bubbles) svg += bubbles(st, r, texts, defs);
+  const ov = await img('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844"><defs>${defs.join('')}</defs>${svg}</svg>`));
+  const gkey = `${k}|${st.chart}|${cs.data}|${cs.elapsed}`;
+  const glow = !ch.mask ? null : ch.heat ? heatLayer(gkey, r.heat || [[0, r.glow[0][1]], [0.1, r.glow[0][1]], ...r.glow.slice(1).map(([p, c]) => [0.1 + p * 0.9, c])], ch.heat.eb, ch.mask, r.cellsInBg || r.ringCellsSvg ? null : r.cells, ch.heat.cellsRing)
+    : glowLayer(gkey, r, ch.mask, !r.cellsInBg);
+  const ctx = canvas.getContext('2d');
+  canvas.width = 390 * scale; canvas.height = 844 * scale;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.drawImage(bg, 0, 0, 390, 844);
+  // Ring cells: morning uses the exact Figma cell layer (it depends only on the ring's position); others are generated in their colours.
+  const cellsImg = ch.heat && r.ringCellsSvg ? await (cellSvgs[k] || (cellSvgs[k] = img(r.ringCellsSvg))) : glow && glow.cells;
+  if (cellsImg) { ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.6; ctx.drawImage(cellsImg, 0, 0, 390, 844); ctx.restore(); }
+  if (glow) ctx.drawImage(glow, 0, 0, 390, 844);
+  ctx.drawImage(ov, 0, 0, 390, 844);
+  // Header (final Figma screens): title 28 Bold routine gradient at y 72, meta line 16 Medium #222 85% at y 114.
+  texts.push({ s: st.title, x: 24, y: 72, size: 28, w: 700, grad: r.title, align: 'left' });
+  texts.push({ s: st.meta || '', x: 25, y: 114, size: 16, w: 500, color: '#222222', a: .85, align: 'left' });
+  if (st.unitText) texts.push({ s: st.unitText, x: 195, y: cf.unitTop, size: 14, w: 500, align: 'center' });
+  texts.forEach(t => drawText(ctx, t));
+}
+// Figma text boxes use auto line height; the baseline sits 0.9465 × size below the box top.
+function drawText(ctx, t) {
+  if (!String(t.s).trim()) return;
+  ctx.save();
+  ctx.font = `${t.w} ${t.size}px ${FONT_FAMILY}`; ctx.textAlign = t.align; ctx.textBaseline = 'alphabetic';
+  const y = t.y + t.size * 0.9465;
+  if (t.grad) { const w = ctx.measureText(t.s).width, g = ctx.createLinearGradient(t.x, 0, t.x + w, 0), [c0, c1, c2, at] = t.grad;
+    g.addColorStop(at[0], c0); g.addColorStop(at[1], c1); g.addColorStop(at[2], c2); ctx.fillStyle = g; }
+  else { ctx.fillStyle = t.color || '#ffffff'; ctx.globalAlpha = t.a ?? 1; }
+  ctx.fillText(t.s, t.x, y, t.maxW);
+  ctx.restore();
+}
+
+// ---------- Guides overlay ----------
+function drawGuides() {
+  const cf = CHARTS[S[cur].chart];
+  const box = (x, y, w, h, label) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#ff2d7a" stroke-width=".8" stroke-dasharray="3 2"/><text x="${x + w + 4}" y="${y + 10}" font-size="8" fill="#ff2d7a" font-family="IBM Plex Mono, monospace">${label}</text>`;
+  document.getElementById('guides').innerHTML =
+    `<line x1="24" y1="0" x2="24" y2="844" stroke="#ff2d7a" stroke-width=".6"/><line x1="366" y1="0" x2="366" y2="844" stroke="#ff2d7a" stroke-width=".6"/><line x1="195" y1="0" x2="195" y2="844" stroke="#ff2d7a" stroke-width=".4" stroke-dasharray="2 3"/>` +
+    box(24, 61, 160, 19, 'KICKER 16') + box(24, 84, 200, 33, 'TITLE 28') + box(79, cf.numTop, 232, 82, 'NUMBER') + box(16, 704, 358, 114, 'BUBBLES');
+}
+
+// ---------- UI ----------
+const screen = document.getElementById('screen');
+let drawing = 0, pending = null;
+async function redraw() {
+  const n = ++drawing, c = document.createElement('canvas');
+  try { await compose(c, 2); } catch (e) { console.error(e); return; }
+  if (n !== drawing) return;
+  const o = screen.getContext('2d'); o.clearRect(0, 0, 780, 1688); o.drawImage(c, 0, 0); drawGuides();
+}
+const soon = () => { clearTimeout(pending); pending = setTimeout(redraw, 120); };
+function syncForm() {
+  const st = S[cur], r = ROUTINES[cur], cs = st.c[st.chart], cf = CHARTS[st.chart];
+  document.querySelectorAll('[data-key]').forEach(el => { const k = el.dataset.key; if (el.type === 'checkbox') el.checked = !!st[k]; else el.value = st[k] ?? ''; });
+  document.querySelectorAll('[data-c-key]').forEach(el => { const k = el.dataset.cKey; if (el.type === 'checkbox') el.checked = !!cs[k]; else el.value = cs[k] ?? ''; });
+  document.getElementById('f-data').value = cs.data;
+  document.querySelectorAll('#chartSeg button').forEach(b => b.classList.toggle('on', b.dataset.c === st.chart));
+  document.querySelectorAll('[data-for]').forEach(el => { el.hidden = !el.dataset.for.split(' ').includes(st.chart); });
+  document.getElementById('chartTag').textContent = cf.name + (st.chart === r.chart ? ' · default' : '');
+  document.getElementById('chartNote').textContent = cf.note;
+  document.getElementById('dataNote').textContent = st.chart === 'arcs' ? 'One past cycle per line: "dates, days" · up to 4' : st.chart === 'ring' ? 'One slot per line, clockwise from 12 o\'clock · 3–24' : st.chart === 'route' ? 'One stop per line in visiting order: "place, visits" · 2–5' : 'One bar per line: "label, value" · 2–8';
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('on', b.dataset.k === cur));
+  document.getElementById('crumbRoutine').textContent = `${r.label} · ${cf.name}`;
+}
+document.getElementById('presets').innerHTML = KEYS.map(k => `<button class="preset-btn" data-k="${k}"><i style="background-image:url(${ROUTINES[k].bg})"></i><span>${ROUTINES[k].label}</span></button>`).join('');
+document.getElementById('presets').addEventListener('click', e => { const b = e.target.closest('.preset-btn'); if (!b) return; cur = b.dataset.k; save(); syncForm(); redraw(); });
+document.getElementById('chartSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S[cur].chart = b.dataset.c; save(); syncForm(); redraw(); });
+document.getElementById('panel').addEventListener('input', e => {
+  const el = e.target, st = S[cur], cs = st.c[st.chart];
+  if (el.dataset.key) st[el.dataset.key] = el.type === 'checkbox' ? el.checked : el.value;
+  else if (el.dataset.cKey) cs[el.dataset.cKey] = el.type === 'checkbox' ? el.checked : el.value;
+  else if (el.id === 'f-data') cs.data = el.value;
+  else return;
+  save(); soon();
+});
+const reset = () => { S[cur] = fresh(cur); save(); syncForm(); redraw(); };
+document.getElementById('resetAll').onclick = reset;
+document.getElementById('resetTop').onclick = reset;
+const guides = document.getElementById('guides');
+document.getElementById('guideToggle').onclick = e => { guides.hidden = !guides.hidden; e.currentTarget.classList.toggle('dark', !guides.hidden); };
+document.getElementById('themeToggle').onclick = e => { const dark = document.documentElement.dataset.theme !== 'dark' && !(document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light'; e.currentTarget.textContent = dark ? 'Light' : 'Dark'; };
+async function exportPng() {
+  const scale = +document.getElementById('exportScale').value, c = document.createElement('canvas');
+  await compose(c, scale);
+  document.getElementById('saveImg').src = c.toDataURL('image/png');
+  document.getElementById('saveTitle').textContent = `${ROUTINES[cur].label} · ${CHARTS[S[cur].chart].name} · ${390 * scale} × ${844 * scale}`;
+  document.getElementById('saveSheet').hidden = false;
+}
+document.getElementById('exportPng').onclick = exportPng;
+document.getElementById('pngTop').onclick = exportPng;
+document.getElementById('closeSheet').onclick = () => { document.getElementById('saveSheet').hidden = true; };
+document.getElementById('saveSheet').addEventListener('click', e => { if (e.target.id === 'saveSheet') e.currentTarget.hidden = true; });
+addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('saveSheet').hidden = true; });
+
+function fit() {
+  const st = document.getElementById('stage'), k = Math.min((st.clientWidth - 32) / 390, (st.clientHeight - 32) / 844, 1.2);
+  const w = document.getElementById('phoneWrap'); w.style.width = 390 * k + 'px'; w.style.height = 844 * k + 'px';
+  screen.style.transform = `scale(${k / 2})`; screen.style.width = '780px'; screen.style.height = '1688px'; screen.style.borderRadius = '88px';
+  guides.style.transform = `scale(${k})`;
+}
+addEventListener('resize', fit);
+fit(); syncForm(); redraw();
+KEYS.forEach(bgOf);
+
+</script>
